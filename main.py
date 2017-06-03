@@ -10,9 +10,6 @@ import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
-# import torchvision.transforms as transforms
-# import torchvision.datasets as datasets
-# import torchvision.models as models
 
 import video_transforms
 import models
@@ -22,23 +19,34 @@ model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
     and callable(models.__dict__[name]))
 
+dataset_names = sorted(name for name in datasets.__all__)
 
-parser = argparse.ArgumentParser(description='PyTorch Action Recognition Training')
+parser = argparse.ArgumentParser(description='PyTorch Two-Stream Action Recognition')
 parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
-parser.add_argument('--arch', '-a', metavar='ARCH', default='resnet50',
+parser.add_argument('--settings', metavar='DIR', default='./settings', 
+                    help='path to datset setting files')
+parser.add_argument('--modality', '-m', metavar='MODALITY', default='rgb',
+                    choices=["rgb", "flow"],
+                    help='modality: rgb | flow')
+parser.add_argument('--dataset', '-d', default='ucf101',
+                    choices=["ucf101", "hmdb51"],
+                    help='dataset: ucf101 | hmdb51')
+parser.add_argument('--arch', '-a', metavar='ARCH', default='vgg16',
                     choices=model_names,
                     help='model architecture: ' +
                         ' | '.join(model_names) +
-                        ' (default: resnet50)')
+                        ' (default: vgg16)')
+parser.add_argument('-s', '--split', default=1, type=int, metavar='S',
+                    help='which split of data to work on (default: 1)')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
-parser.add_argument('--epochs', default=100, type=int, metavar='N',
+parser.add_argument('--epochs', default=400, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
 parser.add_argument('-b', '--batch-size', default=50, type=int,
-                    metavar='N', help='mini-batch size (default: 256)')
+                    metavar='N', help='mini-batch size (default: 50)')
 parser.add_argument('--new_length', default=1, type=int,
                     metavar='N', help='length of sampled video frames (default: 1)')
 parser.add_argument('--lr', '--learning-rate', default=0.001, type=float,
@@ -47,9 +55,11 @@ parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
 parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
                     metavar='W', help='weight decay (default: 1e-4)')
-parser.add_argument('--print-freq', '-p', default=20, type=int,
+parser.add_argument('--print-freq', default=20, type=int,
                     metavar='N', help='print frequency (default: 20)')
-parser.add_argument('--resume', default='', type=str, metavar='PATH',
+parser.add_argument('--save-freq', default=1, type=int,
+                    metavar='N', help='save frequency (default: 20)')
+parser.add_argument('--resume', default='./checkpoints', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
 parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
                     help='evaluate model on validation set')
@@ -61,8 +71,14 @@ def main():
     args = parser.parse_args()
 
     # create model
+    print("Building model ... ")
     model = build_model()
-    print("Model %s is loaded. " % (args.arch))
+    print("Model %s is loaded. " % (args.modality + "_" + args.arch))
+
+    if not os.path.exists(args.resume):
+        os.makedirs(args.resume)
+    print("Saving everything to directory %s." % (args.resume))
+
     # define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda()
 
@@ -72,14 +88,22 @@ def main():
 
     cudnn.benchmark = True
 
-    # Data loading code
+    # Data transforming
     clip_mean = [0.485, 0.456, 0.406] * args.new_length
     clip_std = [0.229, 0.224, 0.225] * args.new_length
     normalize = video_transforms.Normalize(mean=clip_mean,
                                      std=clip_std)
+
+    if args.modality == "rgb":
+        scale_ratios = [1.0, 0.875, 0.75, 0.66]
+    elif args.modality == "flow": 
+        scale_ratios = [1.0, 0.875, 0.75]
+    else:
+        print("No such modality. Only rgb and flow supported.")
+
     train_transform = video_transforms.Compose([
             video_transforms.Scale((256)),
-            video_transforms.MultiScaleCrop((224, 224), [1.0, 0.875, 0.75, 0.66]),
+            video_transforms.MultiScaleCrop((224, 224), scale_ratios),
             video_transforms.RandomHorizontalFlip(),
             video_transforms.ToTensor(),
             normalize,
@@ -92,13 +116,18 @@ def main():
             normalize,
         ])
     
-    train_split_file = "./datasets/train_rgb_split1.txt"
-    val_split_file = "./datasets/val_rgb_split1.txt"
+    # data loading 
+    train_setting_file = "train_%s_split%d.txt" % (args.modality, args.split)
+    train_split_file = os.path.join(args.settings, args.dataset, train_setting_file)
+    val_setting_file = "val_%s_split%d.txt" % (args.modality, args.split)
+    val_split_file = os.path.join(args.settings, args.dataset, val_setting_file)
+    if not os.path.exists(train_split_file) or not os.path.exists(val_split_file):
+        print("No split file exists in %s directory. Preprocess the dataset first" % (args.settings))
 
-    train_dataset = datasets.ucf101(args.data, train_split_file, "train", args.new_length, video_transform=train_transform)
-    val_dataset = datasets.ucf101(args.data, val_split_file, "val", args.new_length, video_transform=val_transform)
+    train_dataset = datasets.__dict__[args.dataset](args.data, train_split_file, "train", args.new_length, video_transform=train_transform)
+    val_dataset = datasets.__dict__[args.dataset](args.data, val_split_file, "val", args.new_length, video_transform=val_transform)
 
-    print('{} samples found, {} train samples and {} test samples '.format(len(val_dataset)+len(train_dataset),
+    print('{} samples found, {} train samples and {} test samples.'.format(len(val_dataset)+len(train_dataset),
                                                                            len(train_dataset),
                                                                            len(val_dataset)))
 
@@ -128,25 +157,25 @@ def main():
         is_best = prec1 > best_prec1
         best_prec1 = max(prec1, best_prec1)
 
-        checkpoint_name = "%03d_%s" % (epoch, "checkpoint.pth.tar")
-        save_checkpoint({
-            'epoch': epoch + 1,
-            'arch': args.arch,
-            'state_dict': model.state_dict(),
-            'best_prec1': best_prec1,
-            'optimizer' : optimizer.state_dict(),
-        }, is_best, checkpoint_name)
+        if (epoch + 1) % args.save_freq == 0:
+            checkpoint_name = "%03d_%s" % (epoch + 1, "checkpoint.pth.tar")
+            save_checkpoint({
+                'epoch': epoch + 1,
+                'arch': args.arch,
+                'state_dict': model.state_dict(),
+                'best_prec1': best_prec1,
+                'optimizer' : optimizer.state_dict(),
+            }, is_best, checkpoint_name, args.resume)
 
 def build_model():
 
-    model = models.__dict__[args.arch](pretrained=True, num_classes=101)
+    model_name = args.modality + "_" + args.arch
+    model = models.__dict__[model_name](pretrained=True, num_classes=101)
     if args.arch.startswith('alexnet') or args.arch.startswith('vgg'):
         model.features = torch.nn.DataParallel(model.features)
         model.cuda()
     else:
         model = torch.nn.DataParallel(model).cuda()
-    # model = models.resnet50(pretrained=True, num_classes=101)
-    # model = torch.nn.DataParallel(model).cuda()
     return model
 
 def train(train_loader, model, criterion, optimizer, epoch):
@@ -154,7 +183,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
     data_time = AverageMeter()
     losses = AverageMeter()
     top1 = AverageMeter()
-    top5 = AverageMeter()
+    top3 = AverageMeter()
 
     # switch to train mode
     model.train()
@@ -166,7 +195,6 @@ def train(train_loader, model, criterion, optimizer, epoch):
 
         input = input.float().cuda(async=True)
         target = target.cuda(async=True)
-        # print(target)
         input_var = torch.autograd.Variable(input)
         target_var = torch.autograd.Variable(target)
 
@@ -174,10 +202,10 @@ def train(train_loader, model, criterion, optimizer, epoch):
         loss = criterion(output, target_var)
 
         # measure accuracy and record loss
-        prec1, prec5 = accuracy(output.data, target, topk=(1, 3))
+        prec1, prec3 = accuracy(output.data, target, topk=(1, 3))
         losses.update(loss.data[0], input.size(0))
         top1.update(prec1[0], input.size(0))
-        top5.update(prec5[0], input.size(0))
+        top3.update(prec3[0], input.size(0))
 
         # compute gradient and do SGD step
         optimizer.zero_grad()
@@ -194,22 +222,23 @@ def train(train_loader, model, criterion, optimizer, epoch):
                   'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                   'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
-                  'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
+                  'Prec@3 {top3.val:.3f} ({top3.avg:.3f})'.format(
                    epoch, i, len(train_loader), batch_time=batch_time,
-                   data_time=data_time, loss=losses, top1=top1, top5=top5))
+                   data_time=data_time, loss=losses, top1=top1, top3=top3))
 
 
 def validate(val_loader, model, criterion):
     batch_time = AverageMeter()
     losses = AverageMeter()
     top1 = AverageMeter()
-    top5 = AverageMeter()
+    top3 = AverageMeter()
 
     # switch to evaluate mode
     model.eval()
 
     end = time.time()
     for i, (input, target) in enumerate(val_loader):
+        input = input.float().cuda(async=True)
         target = target.cuda(async=True)
         input_var = torch.autograd.Variable(input, volatile=True)
         target_var = torch.autograd.Variable(target, volatile=True)
@@ -219,10 +248,10 @@ def validate(val_loader, model, criterion):
         loss = criterion(output, target_var)
 
         # measure accuracy and record loss
-        prec1, prec5 = accuracy(output.data, target, topk=(1, 3))
+        prec1, prec3 = accuracy(output.data, target, topk=(1, 3))
         losses.update(loss.data[0], input.size(0))
         top1.update(prec1[0], input.size(0))
-        top5.update(prec5[0], input.size(0))
+        top3.update(prec3[0], input.size(0))
 
         # measure elapsed time
         batch_time.update(time.time() - end)
@@ -233,20 +262,22 @@ def validate(val_loader, model, criterion):
                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                   'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
-                  'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
+                  'Prec@3 {top3.val:.3f} ({top3.avg:.3f})'.format(
                    i, len(val_loader), batch_time=batch_time, loss=losses,
-                   top1=top1, top5=top5))
+                   top1=top1, top3=top3))
 
-    print(' * Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f}'
-          .format(top1=top1, top5=top5))
+    print(' * Prec@1 {top1.avg:.3f} Prec@3 {top3.avg:.3f}'
+          .format(top1=top1, top3=top3))
 
     return top1.avg
 
 
-def save_checkpoint(state, is_best, filename):
-    torch.save(state, filename)
+def save_checkpoint(state, is_best, filename, resume_path):
+    cur_path = os.path.join(resume_path, filename)
+    best_path = os.path.join(resume_path, 'model_best.pth.tar')
+    torch.save(state, cur_path)
     if is_best:
-        shutil.copyfile(filename, 'model_best.pth.tar')
+        shutil.copyfile(cur_path, best_path)
 
 
 class AverageMeter(object):
@@ -268,8 +299,8 @@ class AverageMeter(object):
 
 
 def adjust_learning_rate(optimizer, epoch):
-    """Sets the learning rate to the initial LR decayed by 10 every 40 epochs"""
-    lr = args.lr * (0.1 ** (epoch // 40))
+    """Sets the learning rate to the initial LR decayed by 10 every 150 epochs"""
+    lr = args.lr * (0.1 ** (epoch // 150))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
         # param_group['lr'] = param_group['lr']/2

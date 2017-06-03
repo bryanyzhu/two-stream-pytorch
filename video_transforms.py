@@ -55,8 +55,9 @@ class Normalize(object):
     """Given mean: (R, G, B) and std: (R, G, B),
     will normalize each channel of the torch.*Tensor, i.e.
     channel = (channel - mean) / std
-    Here, the input is multi-channel data, not a single image.
+    Here, the input is a clip, not a single image. (multi-channel data)
     The dimension of mean and std depends on parameter: new_length
+    If new_length = 1, it falls back to single image case (3 channel)
     """
 
     def __init__(self, mean, std):
@@ -133,14 +134,12 @@ class CenterCrop(object):
         y1 = int(round((h - th) / 2.))
         num_imgs = int(c / 3)
 
-        # scaled_clips = np.zeros((299,299,c))
         scaled_clips = np.zeros((th,tw,c))
         for frame_id in range(num_imgs):
             cur_img = clips[:,:,frame_id*3:frame_id*3+3]
             crop_img = cur_img[y1:y1+th, x1:x1+tw, :]
             assert(crop_img.shape == (th, tw, 3))
             scaled_clips[:,:,frame_id*3:frame_id*3+3] = crop_img
-            # scaled_clips[:,:,frame_id*3:frame_id*3+3] = cv2.resize(crop_img,(299,299))
         return scaled_clips
 
 class RandomHorizontalFlip(object):
@@ -153,7 +152,7 @@ class RandomHorizontalFlip(object):
         return clips
 
 class RandomVerticalFlip(object):
-    """Randomly horizontally flips the given numpy array with a probability of 0.5
+    """Randomly vertically flips the given numpy array with a probability of 0.5
     """
     def __call__(self, clips):
         if random.random() < 0.5:
@@ -205,33 +204,6 @@ class RandomSizedCrop(object):
         scale = Scale(self.size, interpolation=self.interpolation)
         crop = CenterCrop(self.size)
         return crop(scale(clips))
-
-class RandomTranslate(object):
-    def __init__(self, translation):
-        if isinstance(translation, numbers.Number):
-            self.translation = (int(translation), int(translation))
-        else:
-            self.translation = translation
-        
-
-    def __call__(self, inputs,target):
-        h, w, _ = inputs[0].shape
-        th, tw = self.translation
-        tw = random.randint(-tw, tw)
-        th = random.randint(-th, th)
-        if tw==0 and th==0:
-            return inputs, target
-        #compute x1,x2,y1,y2 for img1 and target, and x3,x4,y3,y4 for img2
-        x1,x2,x3,x4 = max(0,tw), min(w+tw,w), max(0,-tw), min(w-tw,w)
-        y1,y2,y3,y4 = max(0,th), min(h+th,h), max(0,-th), min(h-th,h)
-
-        inputs[0] = inputs[0][y1:y2,x1:x2]
-        inputs[1] = inputs[1][y3:y4,x3:x4]
-        target= target[y1:y2,x1:x2]
-        target[:,:,0]+= tw
-        target[:,:,1]+= th
-
-        return inputs, target
 
 class MultiScaleCrop(object):
     """
@@ -288,14 +260,8 @@ class MultiScaleCrop(object):
         scale_rates = self.scale_ratios
         for h in range(len(scale_rates)):
             crop_h = int(base_size * scale_rates[h])
-            # TODO: why smaller than 3?
-            if np.absolute(crop_h - self.height) < 3:
-                crop_h = self.height
             for w in range(len(scale_rates)):
                 crop_w = int(base_size * scale_rates[w])
-                if (np.absolute(crop_w - self.width) < 3):
-                    crop_w = self.width
-
                 # append this cropping size into the list
                 if (np.absolute(h-w) <= self.max_distort):
                     crop_sizes.append((crop_h, crop_w))
@@ -326,14 +292,6 @@ class MultiScaleCrop(object):
             crop_img = cur_img[h_off:h_off+crop_height, w_off:w_off+crop_width, :]
             scaled_clips[:,:,frame_id*3:frame_id*3+3] = cv2.resize(crop_img, (self.width, self.height), self.interpolation)
         return scaled_clips
-
-        # scaled_clips = np.zeros((299,299,c))
-        # for frame_id in range(num_imgs):
-        #     cur_img = clips[:,:,frame_id*3:frame_id*3+3]
-        #     crop_img = cur_img[h_off:h_off+crop_height, w_off:w_off+crop_width, :]
-        #     scaled_clips[:,:,frame_id*3:frame_id*3+3] = cv2.resize(crop_img, (299, 299), self.interpolation)
-        # return scaled_clips
-    
 
 
 
