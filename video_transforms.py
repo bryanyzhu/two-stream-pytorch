@@ -85,9 +85,9 @@ class Scale(object):
     def __call__(self, clips):
 
         h, w, c = clips.shape
+        new_w = 0
+        new_h = 0
         if isinstance(self.size, int):
-            new_w = 0
-            new_h = 0
             if (w <= h and w == self.size) or (h <= w and h == self.size):
                 return clips
             if w < h:
@@ -96,24 +96,28 @@ class Scale(object):
             else:
                 new_w = int(self.size * w / h)
                 new_h = self.size
+        else:
+            new_w = self.size[0]
+            new_h = self.size[1]
 
+        is_color = False
+        if c % 3 == 0: 
+            is_color = True
+
+        if is_color:
             num_imgs = int(c / 3)
             scaled_clips = np.zeros((new_h,new_w,c))
             for frame_id in range(num_imgs):
                 cur_img = clips[:,:,frame_id*3:frame_id*3+3]
                 scaled_clips[:,:,frame_id*3:frame_id*3+3] = cv2.resize(cur_img, (new_w, new_h), self.interpolation)
-            
-            return scaled_clips
         else:
-            num_imgs = int(c / 3)
-            new_w = self.size[0]
-            new_h = self.size[1]
+            num_imgs = int(c / 1)
             scaled_clips = np.zeros((new_h,new_w,c))
             for frame_id in range(num_imgs):
-                cur_img = clips[:,:,frame_id*3:frame_id*3+3]
-                scaled_clips[:,:,frame_id*3:frame_id*3+3] = cv2.resize(cur_img, self.size, self.interpolation)
-            
-            return scaled_clips
+                cur_img = clips[:,:,frame_id:frame_id+1]
+                scaled_clips[:,:,frame_id:frame_id+1] = cv2.resize(cur_img, (new_w, new_h), self.interpolation)
+        return scaled_clips
+       
 
 class CenterCrop(object):
     """Crops the given numpy array at the center to have a region of
@@ -132,15 +136,29 @@ class CenterCrop(object):
         th, tw = self.size
         x1 = int(round((w - tw) / 2.))
         y1 = int(round((h - th) / 2.))
-        num_imgs = int(c / 3)
 
-        scaled_clips = np.zeros((th,tw,c))
-        for frame_id in range(num_imgs):
-            cur_img = clips[:,:,frame_id*3:frame_id*3+3]
-            crop_img = cur_img[y1:y1+th, x1:x1+tw, :]
-            assert(crop_img.shape == (th, tw, 3))
-            scaled_clips[:,:,frame_id*3:frame_id*3+3] = crop_img
-        return scaled_clips
+        is_color = False
+        if c % 3 == 0: 
+            is_color = True
+
+        if is_color:
+            num_imgs = int(c / 3)
+            scaled_clips = np.zeros((th,tw,c))
+            for frame_id in range(num_imgs):
+                cur_img = clips[:,:,frame_id*3:frame_id*3+3]
+                crop_img = cur_img[y1:y1+th, x1:x1+tw, :]
+                assert(crop_img.shape == (th, tw, 3))
+                scaled_clips[:,:,frame_id*3:frame_id*3+3] = crop_img
+            return scaled_clips
+        else:
+            num_imgs = int(c / 1)
+            scaled_clips = np.zeros((th,tw,c))
+            for frame_id in range(num_imgs):
+                cur_img = clips[:,:,frame_id:frame_id+1]
+                crop_img = cur_img[y1:y1+th, x1:x1+tw, :]
+                assert(crop_img.shape == (th, tw, 1))
+                scaled_clips[:,:,frame_id:frame_id+1] = crop_img
+            return scaled_clips
 
 class RandomHorizontalFlip(object):
     """Randomly horizontally flips the given numpy array with a probability of 0.5
@@ -175,8 +193,10 @@ class RandomSizedCrop(object):
 
     def __call__(self, clips):
         h, w, c = clips.shape
-        num_imgs = int(c / 3)
-
+        is_color = False
+        if c % 3 == 0: 
+            is_color = True
+        
         for attempt in range(10):
             area = w * h
             target_area = random.uniform(0.08, 1.0) * area
@@ -193,12 +213,22 @@ class RandomSizedCrop(object):
                 y1 = random.randint(0, h - new_h)
 
                 scaled_clips = np.zeros((self.size,self.size,c))
-                for frame_id in range(num_imgs):
-                    cur_img = clips[:,:,frame_id*3:frame_id*3+3]
-                    crop_img = cur_img[y1:y1+new_h, x1:x1+new_w, :]
-                    assert(crop_img.shape == (new_h, new_w, 3))
-                    scaled_clips[:,:,frame_id*3:frame_id*3+3] = cv2.resize(crop_img, (self.size, self.size), self.interpolation)
-                return scaled_clips
+                if is_color:
+                    num_imgs = int(c / 3)
+                    for frame_id in range(num_imgs):
+                        cur_img = clips[:,:,frame_id*3:frame_id*3+3]
+                        crop_img = cur_img[y1:y1+new_h, x1:x1+new_w, :]
+                        assert(crop_img.shape == (new_h, new_w, 3))
+                        scaled_clips[:,:,frame_id*3:frame_id*3+3] = cv2.resize(crop_img, (self.size, self.size), self.interpolation)
+                    return scaled_clips
+                else:
+                    num_imgs = int(c / 1)
+                    for frame_id in range(num_imgs):
+                        cur_img = clips[:,:,frame_id:frame_id+1]
+                        crop_img = cur_img[y1:y1+new_h, x1:x1+new_w, :]
+                        assert(crop_img.shape == (new_h, new_w, 1))
+                        scaled_clips[:,:,frame_id:frame_id+1] = cv2.resize(crop_img, (self.size, self.size), self.interpolation)
+                    return scaled_clips
 
         # Fallback
         scale = Scale(self.size, interpolation=self.interpolation)
@@ -270,7 +300,9 @@ class MultiScaleCrop(object):
 
     def __call__(self, clips):
         h, w, c = clips.shape
-        num_imgs = int(c / 3)
+        is_color = False
+        if c % 3 == 0: 
+            is_color = True
 
         crop_size_pairs = self.fillCropSize(h, w)
         size_sel = random.randint(0, len(crop_size_pairs)-1)
@@ -287,11 +319,20 @@ class MultiScaleCrop(object):
             w_off = random.randint(0, w - self.width)
 
         scaled_clips = np.zeros((self.height,self.width,c))
-        for frame_id in range(num_imgs):
-            cur_img = clips[:,:,frame_id*3:frame_id*3+3]
-            crop_img = cur_img[h_off:h_off+crop_height, w_off:w_off+crop_width, :]
-            scaled_clips[:,:,frame_id*3:frame_id*3+3] = cv2.resize(crop_img, (self.width, self.height), self.interpolation)
-        return scaled_clips
+        if is_color:
+            num_imgs = int(c / 3)
+            for frame_id in range(num_imgs):
+                cur_img = clips[:,:,frame_id*3:frame_id*3+3]
+                crop_img = cur_img[h_off:h_off+crop_height, w_off:w_off+crop_width, :]
+                scaled_clips[:,:,frame_id*3:frame_id*3+3] = cv2.resize(crop_img, (self.width, self.height), self.interpolation)
+            return scaled_clips
+        else:
+            num_imgs = int(c / 1)
+            for frame_id in range(num_imgs):
+                cur_img = clips[:,:,frame_id:frame_id+1]
+                crop_img = cur_img[h_off:h_off+crop_height, w_off:w_off+crop_width, :]
+                scaled_clips[:,:,frame_id:frame_id+1] = np.expand_dims(cv2.resize(crop_img, (self.width, self.height), self.interpolation), axis=2)
+            return scaled_clips
 
 
 

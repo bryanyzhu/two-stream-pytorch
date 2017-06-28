@@ -45,21 +45,25 @@ parser.add_argument('--epochs', default=400, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
-parser.add_argument('-b', '--batch-size', default=32, type=int,
+parser.add_argument('-b', '--batch-size', default=50, type=int,
                     metavar='N', help='mini-batch size (default: 50)')
-parser.add_argument('--iter-size', default=4, type=int,
-                    metavar='I', help='iter size as in Caffe to reduce memory usage (default: 8)')
+parser.add_argument('--iter-size', default=5, type=int,
+                    metavar='I', help='iter size as in Caffe to reduce memory usage (default: 5)')
 parser.add_argument('--new_length', default=1, type=int,
                     metavar='N', help='length of sampled video frames (default: 1)')
+parser.add_argument('--new_width', default=340, type=int,
+                    metavar='N', help='resize width (default: 340)')
+parser.add_argument('--new_height', default=256, type=int,
+                    metavar='N', help='resize height (default: 256)')
 parser.add_argument('--lr', '--learning-rate', default=0.001, type=float,
                     metavar='LR', help='initial learning rate')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
 parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
                     metavar='W', help='weight decay (default: 1e-4)')
-parser.add_argument('--print-freq', default=20, type=int,
+parser.add_argument('--print-freq', default=45, type=int,
                     metavar='N', help='print frequency (default: 20)')
-parser.add_argument('--save-freq', default=1, type=int,
+parser.add_argument('--save-freq', default=40, type=int,
                     metavar='N', help='save frequency (default: 20)')
 parser.add_argument('--resume', default='./checkpoints', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
@@ -91,8 +95,10 @@ def main():
     cudnn.benchmark = True
 
     # Data transforming
-    clip_mean = [0.485, 0.456, 0.406] * args.new_length
-    clip_std = [0.229, 0.224, 0.225] * args.new_length
+    # clip_mean = [0.485, 0.456, 0.406] * args.new_length
+    # clip_std = [0.229, 0.224, 0.225] * args.new_length
+    clip_mean = [0.5, 0.5, 0.5] * args.new_length
+    clip_std = [0.5, 0.5, 0.5] * args.new_length
     normalize = video_transforms.Normalize(mean=clip_mean,
                                      std=clip_std)
 
@@ -103,8 +109,15 @@ def main():
     else:
         print("No such modality. Only rgb and flow supported.")
 
+    if args.modality == "rgb":
+        is_color = True
+    elif args.modality == "flow": 
+        is_color = False
+    else:
+        print("No such modality. Only rgb and flow supported.")
+
     train_transform = video_transforms.Compose([
-            video_transforms.Scale((256)),
+            # video_transforms.Scale((256)),
             video_transforms.MultiScaleCrop((224, 224), scale_ratios),
             video_transforms.RandomHorizontalFlip(),
             video_transforms.ToTensor(),
@@ -112,7 +125,7 @@ def main():
         ])
 
     val_transform = video_transforms.Compose([
-            video_transforms.Scale((256)),
+            # video_transforms.Scale((256)),
             video_transforms.CenterCrop((224)),
             video_transforms.ToTensor(),
             normalize,
@@ -126,8 +139,24 @@ def main():
     if not os.path.exists(train_split_file) or not os.path.exists(val_split_file):
         print("No split file exists in %s directory. Preprocess the dataset first" % (args.settings))
 
-    train_dataset = datasets.__dict__[args.dataset](args.data, train_split_file, "train", args.new_length, video_transform=train_transform)
-    val_dataset = datasets.__dict__[args.dataset](args.data, val_split_file, "val", args.new_length, video_transform=val_transform)
+    train_dataset = datasets.__dict__[args.dataset](root=args.data, 
+                                                    source=train_split_file, 
+                                                    phase="train", 
+                                                    modality=args.modality,
+                                                    is_color=is_color, 
+                                                    new_length=args.new_length,
+                                                    new_width=args.new_width,
+                                                    new_height=args.new_height,
+                                                    video_transform=train_transform)
+    val_dataset = datasets.__dict__[args.dataset](root=args.data, 
+                                                  source=val_split_file, 
+                                                  phase="val", 
+                                                  modality=args.modality, 
+                                                  is_color=is_color, 
+                                                  new_length=args.new_length,
+                                                  new_width=args.new_width,
+                                                  new_height=args.new_height,
+                                                  video_transform=val_transform)
 
     print('{} samples found, {} train samples and {} test samples.'.format(len(val_dataset)+len(train_dataset),
                                                                            len(train_dataset),
@@ -173,27 +202,23 @@ def build_model():
 
     model_name = args.modality + "_" + args.arch
     model = models.__dict__[model_name](pretrained=True, num_classes=101)
-    if args.arch.startswith('alexnet') or args.arch.startswith('vgg'):
-        model.features = torch.nn.DataParallel(model.features)
-        model.cuda()
-    else:
-        model = torch.nn.DataParallel(model).cuda()
+    model.cuda()
     return model
 
 def train(train_loader, model, criterion, optimizer, epoch):
     batch_time = AverageMeter()
-    data_time = AverageMeter()
     losses = AverageMeter()
     top1 = AverageMeter()
-    top3 = AverageMeter()
 
     # switch to train mode
     model.train()
 
     end = time.time()
+    optimizer.zero_grad()
+    loss_mini_batch = 0.0
+    acc_mini_batch = 0.0
+
     for i, (input, target) in enumerate(train_loader):
-        # measure data loading time
-        data_time.update(time.time() - end)
 
         input = input.float().cuda(async=True)
         target = target.cuda(async=True)
@@ -201,33 +226,37 @@ def train(train_loader, model, criterion, optimizer, epoch):
         target_var = torch.autograd.Variable(target)
 
         output = model(input_var)
-        loss = criterion(output, target_var)
 
         # measure accuracy and record loss
         prec1, prec3 = accuracy(output.data, target, topk=(1, 3))
-        losses.update(loss.data[0], input.size(0))
-        top1.update(prec1[0], input.size(0))
-        top3.update(prec3[0], input.size(0))
-
-        # compute gradient and do SGD step
-        optimizer.zero_grad()
+        acc_mini_batch += prec1[0]
+        loss = criterion(output, target_var)
+        loss = loss / args.iter_size
+        loss_mini_batch += loss.data[0]
         loss.backward()
-        optimizer.step()
 
-        # measure elapsed time
-        batch_time.update(time.time() - end)
-        end = time.time()
+        if (i+1) % args.iter_size == 0:
+            # compute gradient and do SGD step
+            optimizer.step()
+            optimizer.zero_grad()
 
-        if i % args.print_freq == 0:
-            print('Epoch: [{0}][{1}/{2}]\t'
-                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                  'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
-                  'Prec@3 {top3.val:.3f} ({top3.avg:.3f})'.format(
-                   epoch, i, len(train_loader), batch_time=batch_time,
-                   data_time=data_time, loss=losses, top1=top1, top3=top3))
+            # losses.update(loss_mini_batch/args.iter_size, input.size(0))
+            # top1.update(acc_mini_batch/args.iter_size, input.size(0))
+            losses.update(loss_mini_batch, input.size(0))
+            top1.update(acc_mini_batch/args.iter_size, input.size(0))
+            batch_time.update(time.time() - end)
+            end = time.time()
+            loss_mini_batch = 0
+            acc_mini_batch = 0
 
+            if (i+1) % args.print_freq == 0:
+
+                print('Epoch: [{0}][{1}/{2}]\t'
+                      'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                      'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                      'Prec@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
+                       epoch, i+1, len(train_loader)+1, batch_time=batch_time, loss=losses, top1=top1))
+            
 
 def validate(val_loader, model, criterion):
     batch_time = AverageMeter()
@@ -303,6 +332,7 @@ class AverageMeter(object):
 def adjust_learning_rate(optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 10 every 150 epochs"""
     lr = args.lr * (0.1 ** (epoch // 150))
+    print(lr)
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
         # param_group['lr'] = param_group['lr']/2
