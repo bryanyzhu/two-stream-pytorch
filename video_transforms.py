@@ -101,7 +101,7 @@ class Scale(object):
             new_h = self.size[1]
 
         is_color = False
-        if c % 3 == 0: 
+        if c % 3 == 0:
             is_color = True
 
         if is_color:
@@ -117,7 +117,7 @@ class Scale(object):
                 cur_img = clips[:,:,frame_id:frame_id+1]
                 scaled_clips[:,:,frame_id:frame_id+1] = cv2.resize(cur_img, (new_w, new_h), self.interpolation)
         return scaled_clips
-       
+
 
 class CenterCrop(object):
     """Crops the given numpy array at the center to have a region of
@@ -138,7 +138,7 @@ class CenterCrop(object):
         y1 = int(round((h - th) / 2.))
 
         is_color = False
-        if c % 3 == 0: 
+        if c % 3 == 0:
             is_color = True
 
         if is_color:
@@ -194,9 +194,9 @@ class RandomSizedCrop(object):
     def __call__(self, clips):
         h, w, c = clips.shape
         is_color = False
-        if c % 3 == 0: 
+        if c % 3 == 0:
             is_color = True
-        
+
         for attempt in range(10):
             area = w * h
             target_area = random.uniform(0.08, 1.0) * area
@@ -238,7 +238,7 @@ class RandomSizedCrop(object):
 class MultiScaleCrop(object):
     """
     Description: Corner cropping and multi-scale cropping. Two data augmentation techniques introduced in:
-        Towards Good Practices for Very Deep Two-Stream ConvNets, 
+        Towards Good Practices for Very Deep Two-Stream ConvNets,
         http://arxiv.org/abs/1507.02159
         Limin Wang, Yuanjun Xiong, Zhe Wang and Yu Qiao
 
@@ -301,14 +301,14 @@ class MultiScaleCrop(object):
     def __call__(self, clips):
         h, w, c = clips.shape
         is_color = False
-        if c % 3 == 0: 
+        if c % 3 == 0:
             is_color = True
 
         crop_size_pairs = self.fillCropSize(h, w)
         size_sel = random.randint(0, len(crop_size_pairs)-1)
         crop_height = crop_size_pairs[size_sel][0]
         crop_width = crop_size_pairs[size_sel][1]
-        
+
         if self.fix_crop:
             offsets = self.fillFixOffset(h, w)
             off_sel = random.randint(0, len(offsets)-1)

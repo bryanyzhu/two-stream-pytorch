@@ -24,9 +24,9 @@ dataset_names = sorted(name for name in datasets.__all__)
 parser = argparse.ArgumentParser(description='PyTorch Two-Stream Action Recognition')
 parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
-parser.add_argument('--settings', metavar='DIR', default='./settings', 
+parser.add_argument('--settings', metavar='DIR', default='./settings',
                     help='path to datset setting files')
-parser.add_argument('--modality', '-m', metavar='MODALITY', default='rgb',
+parser.add_argument('--modality', '-m', metavar='MODALITY', default='flow',
                     choices=["rgb", "flow"],
                     help='modality: rgb | flow')
 parser.add_argument('--dataset', '-d', default='ucf101',
@@ -41,7 +41,7 @@ parser.add_argument('-s', '--split', default=1, type=int, metavar='S',
                     help='which split of data to work on (default: 1)')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
-parser.add_argument('--epochs', default=400, type=int, metavar='N',
+parser.add_argument('--epochs', default=750, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
@@ -49,21 +49,21 @@ parser.add_argument('-b', '--batch-size', default=50, type=int,
                     metavar='N', help='mini-batch size (default: 50)')
 parser.add_argument('--iter-size', default=5, type=int,
                     metavar='I', help='iter size as in Caffe to reduce memory usage (default: 5)')
-parser.add_argument('--new_length', default=1, type=int,
+parser.add_argument('--new_length', default=10, type=int,
                     metavar='N', help='length of sampled video frames (default: 1)')
 parser.add_argument('--new_width', default=340, type=int,
                     metavar='N', help='resize width (default: 340)')
 parser.add_argument('--new_height', default=256, type=int,
                     metavar='N', help='resize height (default: 256)')
-parser.add_argument('--lr', '--learning-rate', default=0.001, type=float,
+parser.add_argument('--lr', '--learning-rate', default=0.005, type=float,
                     metavar='LR', help='initial learning rate')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
-parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
+parser.add_argument('--weight-decay', '--wd', default=5e-4, type=float,
                     metavar='W', help='weight decay (default: 1e-4)')
 parser.add_argument('--print-freq', default=45, type=int,
                     metavar='N', help='print frequency (default: 20)')
-parser.add_argument('--save-freq', default=40, type=int,
+parser.add_argument('--save-freq', default=25, type=int,
                     metavar='N', help='save frequency (default: 20)')
 parser.add_argument('--resume', default='./checkpoints', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
@@ -81,10 +81,6 @@ def main():
     model = build_model()
     print("Model %s is loaded. " % (args.modality + "_" + args.arch))
 
-    if not os.path.exists(args.resume):
-        os.makedirs(args.resume)
-    print("Saving everything to directory %s." % (args.resume))
-
     # define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda()
 
@@ -92,30 +88,28 @@ def main():
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
 
+    if not os.path.exists(args.resume):
+        os.makedirs(args.resume)
+    print("Saving everything to directory %s." % (args.resume))
+
     cudnn.benchmark = True
 
     # Data transforming
-    # clip_mean = [0.485, 0.456, 0.406] * args.new_length
-    # clip_std = [0.229, 0.224, 0.225] * args.new_length
-    clip_mean = [0.5, 0.5, 0.5] * args.new_length
-    clip_std = [0.5, 0.5, 0.5] * args.new_length
-    normalize = video_transforms.Normalize(mean=clip_mean,
-                                     std=clip_std)
-
     if args.modality == "rgb":
         scale_ratios = [1.0, 0.875, 0.75, 0.66]
-    elif args.modality == "flow": 
-        scale_ratios = [1.0, 0.875, 0.75]
-    else:
-        print("No such modality. Only rgb and flow supported.")
-
-    if args.modality == "rgb":
         is_color = True
-    elif args.modality == "flow": 
+        clip_mean = [0.485, 0.456, 0.406] * args.new_length
+        clip_std = [0.229, 0.224, 0.225] * args.new_length
+    elif args.modality == "flow":
+        scale_ratios = [1.0, 0.875, 0.75]
         is_color = False
+        clip_mean = [0.5, 0.5] * args.new_length
+        clip_std = [0.5, 0.5] * args.new_length
     else:
         print("No such modality. Only rgb and flow supported.")
 
+    normalize = video_transforms.Normalize(mean=clip_mean,
+                                     std=clip_std)
     train_transform = video_transforms.Compose([
             # video_transforms.Scale((256)),
             video_transforms.MultiScaleCrop((224, 224), scale_ratios),
@@ -130,8 +124,8 @@ def main():
             video_transforms.ToTensor(),
             normalize,
         ])
-    
-    # data loading 
+
+    # data loading
     train_setting_file = "train_%s_split%d.txt" % (args.modality, args.split)
     train_split_file = os.path.join(args.settings, args.dataset, train_setting_file)
     val_setting_file = "val_%s_split%d.txt" % (args.modality, args.split)
@@ -139,20 +133,20 @@ def main():
     if not os.path.exists(train_split_file) or not os.path.exists(val_split_file):
         print("No split file exists in %s directory. Preprocess the dataset first" % (args.settings))
 
-    train_dataset = datasets.__dict__[args.dataset](root=args.data, 
-                                                    source=train_split_file, 
-                                                    phase="train", 
+    train_dataset = datasets.__dict__[args.dataset](root=args.data,
+                                                    source=train_split_file,
+                                                    phase="train",
                                                     modality=args.modality,
-                                                    is_color=is_color, 
+                                                    is_color=is_color,
                                                     new_length=args.new_length,
                                                     new_width=args.new_width,
                                                     new_height=args.new_height,
                                                     video_transform=train_transform)
-    val_dataset = datasets.__dict__[args.dataset](root=args.data, 
-                                                  source=val_split_file, 
-                                                  phase="val", 
-                                                  modality=args.modality, 
-                                                  is_color=is_color, 
+    val_dataset = datasets.__dict__[args.dataset](root=args.data,
+                                                  source=val_split_file,
+                                                  phase="val",
+                                                  modality=args.modality,
+                                                  is_color=is_color,
                                                   new_length=args.new_length,
                                                   new_width=args.new_width,
                                                   new_height=args.new_height,
@@ -256,7 +250,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
                       'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                       'Prec@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
                        epoch, i+1, len(train_loader)+1, batch_time=batch_time, loss=losses, top1=top1))
-            
+
 
 def validate(val_loader, model, criterion):
     batch_time = AverageMeter()
@@ -331,7 +325,7 @@ class AverageMeter(object):
 
 def adjust_learning_rate(optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 10 every 150 epochs"""
-    lr = args.lr * (0.1 ** (epoch // 150))
+    lr = args.lr * (0.1 ** (epoch // 250))
     print(lr)
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
