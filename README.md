@@ -5,23 +5,23 @@ Current release is the PyTorch implementation of the "Towards Good Practices for
 
 For future, I will add PyTorch implementation for the following papers:
 
-Temporal Segment Networks: Towards Good Practices for Deep Action Recognition,
+`Temporal Segment Networks: Towards Good Practices for Deep Action Recognition,
 
 Limin Wang, Yuanjun Xiong, Zhe Wang, Yu Qiao, Dahua Lin, Xiaoou Tang, Luc Van Gool
 
-ECCV 2016
+ECCV 2016`
 
-Deep Temporal Linear Encoding Networks
+`Deep Temporal Linear Encoding Networks
 
 Ali Diba, Vivek Sharma, Luc Van Gool
 
-https://arxiv.org/abs/1611.06678
+https://arxiv.org/abs/1611.06678`
 
-Hidden Two-Stream Convolutional Networks for Action Recognition
+`Hidden Two-Stream Convolutional Networks for Action Recognition
 
 Yi Zhu, Zhenzhong Lan, Shawn Newsam, Alexander G. Hauptmann
 
-https://arxiv.org/abs/1704.00389
+https://arxiv.org/abs/1704.00389`
 
 
 Install
@@ -29,13 +29,13 @@ Install
 
 Tested on PyTorch:
 
-OS: Ubuntu 16.04
+`OS: Ubuntu 16.04
 
 Package manager: Conda
 
 Python: 3.5
 
-CUDA: 8.0
+CUDA: 8.0`
 
 Code also works for Python 2.7.
 
