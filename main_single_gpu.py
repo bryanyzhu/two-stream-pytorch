@@ -11,9 +11,12 @@ import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
 
-import video_transforms
+from utils import video_transforms
 import models
 import datasets
+
+from utils.log import log
+from IPython import embed
 
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
@@ -69,6 +72,9 @@ parser.add_argument('--resume', default='./checkpoints', type=str, metavar='PATH
                     help='path to latest checkpoint (default: none)')
 parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
                     help='evaluate model on validation set')
+parser.add_argument("--gpus", type=str, 
+                    default='0', help='specify list of gpu to use')
+
 
 best_prec1 = 0
 
@@ -77,9 +83,11 @@ def main():
     args = parser.parse_args()
 
     # create model
-    print("Building model ... ")
-    model = build_model()
-    print("Model %s is loaded. " % (args.modality + "_" + args.arch))
+    log.l.info("Building model ... ")
+    gpu_list=[int(_) for _ in args.gpus.split(',')]
+
+    model = build_model(gpu_list)
+    log.l.info("Model %s is loaded. " % (args.modality + "_" + args.arch))
 
     # define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda()
@@ -90,7 +98,7 @@ def main():
 
     if not os.path.exists(args.resume):
         os.makedirs(args.resume)
-    print("Saving everything to directory %s." % (args.resume))
+    log.l.info("Saving everything to directory %s." % (args.resume))
 
     cudnn.benchmark = True
 
@@ -106,7 +114,7 @@ def main():
         clip_mean = [0.5, 0.5] * args.new_length
         clip_std = [0.5, 0.5] * args.new_length
     else:
-        print("No such modality. Only rgb and flow supported.")
+        log.l.info("No such modality. Only rgb and flow supported.")
 
     normalize = video_transforms.Normalize(mean=clip_mean,
                                      std=clip_std)
@@ -131,7 +139,7 @@ def main():
     val_setting_file = "val_%s_split%d.txt" % (args.modality, args.split)
     val_split_file = os.path.join(args.settings, args.dataset, val_setting_file)
     if not os.path.exists(train_split_file) or not os.path.exists(val_split_file):
-        print("No split file exists in %s directory. Preprocess the dataset first" % (args.settings))
+        log.l.info("No split file exists in %s directory. Preprocess the dataset first" % (args.settings))
 
     train_dataset = datasets.__dict__[args.dataset](root=args.data,
                                                     source=train_split_file,
@@ -152,7 +160,7 @@ def main():
                                                   new_height=args.new_height,
                                                   video_transform=val_transform)
 
-    print('{} samples found, {} train samples and {} test samples.'.format(len(val_dataset)+len(train_dataset),
+    log.l.info('{} samples found, {} train samples and {} test samples.'.format(len(val_dataset)+len(train_dataset),
                                                                            len(train_dataset),
                                                                            len(val_dataset)))
 
@@ -192,11 +200,13 @@ def main():
                 'optimizer' : optimizer.state_dict(),
             }, is_best, checkpoint_name, args.resume)
 
-def build_model():
+def build_model(gpu_list):
 
     model_name = args.modality + "_" + args.arch
     model = models.__dict__[model_name](pretrained=True, num_classes=101)
-    model.cuda()
+    if len(gpu_list)!=1:
+        nn.DataParallel(model,device_ids=gpu_list)
+    model.cuda(gpu_list[0])
     return model
 
 def train(train_loader, model, criterion, optimizer, epoch):
@@ -225,6 +235,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
         prec1, prec3 = accuracy(output.data, target, topk=(1, 3))
         acc_mini_batch += prec1[0]
         loss = criterion(output, target_var)
+        embed()
         loss = loss / args.iter_size
         loss_mini_batch += loss.data[0]
         loss.backward()
@@ -245,7 +256,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
 
             if (i+1) % args.print_freq == 0:
 
-                print('Epoch: [{0}][{1}/{2}]\t'
+                log.l.info('Epoch: [{0}][{1}/{2}]\t'
                       'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                       'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                       'Prec@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
@@ -283,7 +294,7 @@ def validate(val_loader, model, criterion):
         end = time.time()
 
         if i % args.print_freq == 0:
-            print('Test: [{0}/{1}]\t'
+            log.l.info('Test: [{0}/{1}]\t'
                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                   'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
@@ -291,7 +302,7 @@ def validate(val_loader, model, criterion):
                    i, len(val_loader), batch_time=batch_time, loss=losses,
                    top1=top1, top3=top3))
 
-    print(' * Prec@1 {top1.avg:.3f} Prec@3 {top3.avg:.3f}'
+    log.l.info(' * Prec@1 {top1.avg:.3f} Prec@3 {top3.avg:.3f}'
           .format(top1=top1, top3=top3))
 
     return top1.avg
@@ -326,7 +337,7 @@ class AverageMeter(object):
 def adjust_learning_rate(optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 10 every 150 epochs"""
     lr = args.lr * (0.1 ** (epoch // 250))
-    print(lr)
+    log.l.info(lr)
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
         # param_group['lr'] = param_group['lr']/2
