@@ -1,7 +1,0 @@
-save/*
-logs/*
-dump/*
-
-ckpts/*
-
-*.pyc

@@ -1,3 +1,0 @@
-from tf_model_zoo.inceptionresnetv2.pytorch_load import inceptionresnetv2
-from tf_model_zoo.inceptionv4.pytorch_load import inceptionv4
-from tf_model_zoo.bninception.pytorch_load import BNInception
