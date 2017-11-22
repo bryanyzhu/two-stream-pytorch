@@ -19,7 +19,7 @@ def make_dataset(root, source):
         sys.exit()
     else:
         clips = []
-        with open(source) as split_f:  
+        with open(source) as split_f:
             data = split_f.readlines()
             for line in data:
                 line_info = line.split()
@@ -46,14 +46,14 @@ def ReadSegmentRGB(path, offsets, new_height, new_width, new_length, is_color, n
             cv_img_origin = cv2.imread(frame_path, cv_read_flag)
             if cv_img_origin is None:
                print("Could not load file %s" % (frame_path))
-               sys.exit() 
+               sys.exit()
                # TODO: error handling here
             if new_width > 0 and new_height > 0:
                 cv_img = cv2.resize(cv_img_origin, (new_width, new_height), interpolation)
             else:
                 cv_img = cv_img_origin
             cv_img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
-            sampled_list.append(cv_img)    
+            sampled_list.append(cv_img)
     clip_input = np.concatenate(sampled_list, axis=2)
     return clip_input
 
@@ -62,7 +62,7 @@ def ReadSegmentFlow(path, offsets, new_height, new_width, new_length, is_color, 
         cv_read_flag = cv2.IMREAD_COLOR         # > 0
     else:
         cv_read_flag = cv2.IMREAD_GRAYSCALE     # = 0
-    interpolation = cv2.INTER_LINEAR  
+    interpolation = cv2.INTER_LINEAR
 
     sampled_list = []
     for offset_id in range(len(offsets)):
@@ -76,7 +76,7 @@ def ReadSegmentFlow(path, offsets, new_height, new_width, new_length, is_color, 
             cv_img_origin_y = cv2.imread(frame_path_y, cv_read_flag)
             if cv_img_origin_x is None or cv_img_origin_y is None:
                print("Could not load file %s or %s" % (frame_path_x, frame_path_y))
-               sys.exit() 
+               sys.exit()
                # TODO: error handling here
             if new_width > 0 and new_height > 0:
                 cv_img_x = cv2.resize(cv_img_origin_x, (new_width, new_height), interpolation)
@@ -84,8 +84,8 @@ def ReadSegmentFlow(path, offsets, new_height, new_width, new_length, is_color, 
             else:
                 cv_img_x = cv_img_origin_x
                 cv_img_y = cv_img_origin_y
-            sampled_list.append(np.expand_dims(cv_img_x, 2))  
-            sampled_list.append(np.expand_dims(cv_img_y, 2))      
+            sampled_list.append(np.expand_dims(cv_img_x, 2))
+            sampled_list.append(np.expand_dims(cv_img_y, 2))
 
     clip_input = np.concatenate(sampled_list, axis=2)
     return clip_input
@@ -93,33 +93,33 @@ def ReadSegmentFlow(path, offsets, new_height, new_width, new_length, is_color, 
 
 class ucf101(data.Dataset):
 
-    def __init__(self, 
-                 root, 
-                 source, 
-                 phase, 
+    def __init__(self,
+                 root,
+                 source,
+                 phase,
                  modality,
                  name_pattern=None,
-                 is_color=True, 
+                 is_color=True,
                  num_segments=1,
-                 new_length=1, 
+                 new_length=1,
                  new_width=0,
                  new_height=0,
-                 transform=None, 
-                 target_transform=None, 
+                 transform=None,
+                 target_transform=None,
                  video_transform=None):
 
         classes, class_to_idx = find_classes(root)
         clips = make_dataset(root, source)
-        
+
         if len(clips) == 0:
             raise(RuntimeError("Found 0 video clips in subfolders of: " + root + "\n"
                                "Check your data directory."))
-        
+
         self.root = root
         self.source = source
         self.phase = phase
         self.modality = modality
-        
+
         self.classes = classes
         self.class_to_idx = class_to_idx
         self.clips = clips
@@ -131,13 +131,13 @@ class ucf101(data.Dataset):
                 self.name_pattern = "image_%04d.jpg"
             elif self.modality == "flow":
                 self.name_pattern = "flow_%s_%04d.jpg"
-        
+
         self.is_color = is_color
         self.num_segments = num_segments
         self.new_length = new_length
         self.new_width = new_width
         self.new_height = new_height
-        
+
         self.transform = transform
         self.target_transform = target_transform
         self.video_transform = video_transform
@@ -165,24 +165,24 @@ class ucf101(data.Dataset):
 
         if self.modality == "rgb":
             clip_input = ReadSegmentRGB(path,
-                                        offsets, 
+                                        offsets,
                                         self.new_height,
-                                        self.new_width, 
-                                        self.new_length, 
-                                        self.is_color, 
+                                        self.new_width,
+                                        self.new_length,
+                                        self.is_color,
                                         self.name_pattern
                                         )
         elif self.modality == "flow":
             clip_input = ReadSegmentFlow(path,
-                                        offsets, 
+                                        offsets,
                                         self.new_height,
-                                        self.new_width, 
-                                        self.new_length, 
-                                        self.is_color, 
+                                        self.new_width,
+                                        self.new_length,
+                                        self.is_color,
                                         self.name_pattern
                                         )
         else:
-            print("No such modality %s" % (self.modality))  
+            print("No such modality %s" % (self.modality))
 
         if self.transform is not None:
             clip_input = self.transform(clip_input)

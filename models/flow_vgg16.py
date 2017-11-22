@@ -91,7 +91,7 @@ def change_key_names(old_params, in_channels):
                 new_params[layer_key] = old_params[layer_key]
                 layer_count += 1
                 # print(layer_key, new_params[layer_key].size())
-    
+
     return new_params
 
 def flow_vgg16(pretrained=False, **kwargs):
@@ -112,7 +112,7 @@ def flow_vgg16(pretrained=False, **kwargs):
         # 1. filter out unnecessary keys
         new_pretrained_dict = {k: v for k, v in new_pretrained_dict.items() if k in model_dict}
         # 2. overwrite entries in the existing state dict
-        model_dict.update(new_pretrained_dict) 
+        model_dict.update(new_pretrained_dict)
         # 3. load the new state dict
         model.load_state_dict(model_dict)
 
