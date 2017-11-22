@@ -101,7 +101,8 @@ def flow_vgg16(pretrained=False, **kwargs):
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
     model = VGG(make_layers(cfg['D']), **kwargs)
-    in_channels = 20
+    # TODO: hardcoded for now for 10 optical flow images, set it as an argument later 
+    in_channels = 20            
     if pretrained:
         # model.load_state_dict(model_zoo.load_url(model_urls['vgg16']))
         pretrained_dict = model_zoo.load_url(model_urls['vgg16'])

@@ -49,7 +49,7 @@ class ToTensor(object):
             # handle numpy array
             clips = torch.from_numpy(clips.transpose((2, 0, 1)))
             # backward compatibility
-            return clips.float().div(255)
+            return clips.float().div(255.0)
 
 class Normalize(object):
     """Given mean: (R, G, B) and std: (R, G, B),
