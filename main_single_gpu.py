@@ -28,7 +28,7 @@ parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
 parser.add_argument('--settings', metavar='DIR', default='./settings',
                     help='path to datset setting files')
-parser.add_argument('--modality', '-m', metavar='MODALITY', default='flow',
+parser.add_argument('--modality', '-m', metavar='MODALITY', default='rgb',
                     choices=["rgb", "flow"],
                     help='modality: rgb | flow')
 parser.add_argument('--dataset', '-d', default='ucf101',
@@ -43,11 +43,7 @@ parser.add_argument('-s', '--split', default=1, type=int, metavar='S',
                     help='which split of data to work on (default: 1)')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
-<<<<<<< HEAD
 parser.add_argument('--epochs', default=250, type=int, metavar='N',
-=======
-parser.add_argument('--epochs', default=750, type=int, metavar='N',
->>>>>>> f388aed3118e80cf51805afefbc78da8405f9e6a
                     help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
@@ -55,7 +51,7 @@ parser.add_argument('-b', '--batch-size', default=25, type=int,
                     metavar='N', help='mini-batch size (default: 50)')
 parser.add_argument('--iter-size', default=5, type=int,
                     metavar='I', help='iter size as in Caffe to reduce memory usage (default: 5)')
-parser.add_argument('--new_length', default=10, type=int,
+parser.add_argument('--new_length', default=1, type=int,
                     metavar='N', help='length of sampled video frames (default: 1)')
 parser.add_argument('--new_width', default=340, type=int,
                     metavar='N', help='resize width (default: 340)')
@@ -108,31 +104,15 @@ def main():
     if args.modality == "rgb":
         is_color = True
         scale_ratios = [1.0, 0.875, 0.75, 0.66]
-<<<<<<< HEAD
         clip_mean = [0.485, 0.456, 0.406] * args.new_length
         clip_std = [0.229, 0.224, 0.225] * args.new_length
     elif args.modality == "flow":
         is_color = False
         scale_ratios = [1.0, 0.875, 0.75]
-        clip_mean = [0.5, 0.5] * args.new_length
-        clip_std = [0.226, 0.226] * args.new_length
-    else:
-        print("No such modality. Only rgb and flow supported.")
-
-    normalize = video_transforms.Normalize(mean=clip_mean,
-                                     std=clip_std)
-=======
-        is_color = True
-        clip_mean = [0.485, 0.456, 0.406] * args.new_length
-        clip_std = [0.229, 0.224, 0.225] * args.new_length
-    elif args.modality == "flow":
-        scale_ratios = [1.0, 0.875, 0.75]
-        is_color = False
         clip_mean = [0.5, 0.5] * args.new_length
         clip_std = [0.5, 0.5] * args.new_length
     else:
         print("No such modality. Only rgb and flow supported.")
->>>>>>> f388aed3118e80cf51805afefbc78da8405f9e6a
 
     normalize = video_transforms.Normalize(mean=clip_mean,
                                      std=clip_std)
@@ -277,10 +257,6 @@ def train(train_loader, model, criterion, optimizer, epoch):
                       'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                       'Prec@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
                        epoch, i+1, len(train_loader)+1, batch_time=batch_time, loss=losses, top1=top1))
-<<<<<<< HEAD
-=======
-
->>>>>>> f388aed3118e80cf51805afefbc78da8405f9e6a
 
 def validate(val_loader, model, criterion):
     batch_time = AverageMeter()
@@ -352,14 +328,10 @@ class AverageMeter(object):
 
 def adjust_learning_rate(optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 10 every 150 epochs"""
-<<<<<<< HEAD
+
     decay = 0.1 ** (sum(epoch >= np.array(args.lr_steps)))
     lr = args.lr * decay
     print("Current learning rate is %4.6f:" % lr)
-=======
-    lr = args.lr * (0.1 ** (epoch // 250))
-    print(lr)
->>>>>>> f388aed3118e80cf51805afefbc78da8405f9e6a
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
