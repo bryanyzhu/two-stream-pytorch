@@ -30,8 +30,8 @@ def VideoTemporalPrediction(
         num_categories,
         start_frame=0,
         num_frames=0,
-        num_samples=5,
-        optical_flow_frames=25
+        num_samples=25,
+        optical_flow_frames=10
         ):
 
     if num_frames == 0:

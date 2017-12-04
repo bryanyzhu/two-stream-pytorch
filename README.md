@@ -38,11 +38,11 @@ Training
 
 For spatial stream (single RGB frame), run:
 
-`python main_single_gpu.py DATA_PATH -m rgb -a rgb_vgg16 --new_length=1 --epochs 250 --lr 0.001 --lr_steps 100 200`
+`python main_single_gpu.py DATA_PATH -m rgb -a rgb_resnet152 --new_length=1 --epochs 250 --lr 0.001 --lr_steps 100 200`
 
 For temporal stream (10 consecutive optical flow images), run:
 
-`python main_single_gpu.py DATA_PATH -m flow -a flow_vgg16 --new_length=10 --epochs 750 --lr 0.005 --lr_steps 250 500`
+`python main_single_gpu.py DATA_PATH -m flow -a flow_resnet152 --new_length=10 --epochs 350 --lr 0.001 --lr_steps 200 300`
 
 `DATA_PATH` is where you store RGB frames or optical flow images. Change the parameters passing to argparse as you need.
 
@@ -51,9 +51,15 @@ Testing
 
 Go into "scripts/eval_ucf101_pytorch" folder, run `python spatial_demo.py` to obtain spatial stream result, and run `python temporal_demo.py` to obtain temporal stream result. Change those label files before running the script. 
 
-Currenly, for VGG16 model, I can obtain a 78.5% accuracy for spatial stream and 80.4% for temporal stream on the split 1 of UCF101 dataset. The spatial result is close to the number reported in original paper, but flow result is 5% away. Maybe there are subtle bugs in the flow model or how I did the preprocessing of flow images is wrong. Welcome any comments if you found the reason why there is a performance gap. If you need the pre-trained models, just email me. I will find a place to hold the models soon for easy sharing.
+For ResNet152, I can obtain a 85.60% accuracy for spatial stream and 85.71% for temporal stream on the split 1 of UCF101 dataset. The result looks promising. 
+[Pre-trained RGB_ResNet152 Model](https://drive.google.com/open?id=1BU8TyW7u-skmkQFAVlQhA_5ZZvugZXAt)
+[Pre-trained Flow_ResNet152 Model](https://drive.google.com/open?id=1KPoPYAslsdOMXbtqfi2y8TTn7zDEz898)
 
-I am experimenting with ResNet and DenseNet now, will release the code in a couple of days. Stay tuned. 
+For VGG16, I can obtain a 78.5% accuracy for spatial stream and 80.4% for temporal stream on the split 1 of UCF101 dataset. The spatial result is close to the number reported in original paper, but flow result is 5% away. There are several reasons, maybe the pretained VGG16 model in PyTorch is differnt from Caffe, maybe there are subtle bugs in my VGG16 flow model. Welcome any comments if you found the reason why there is a performance gap. 
+[Pre-trained RGB_VGG16 Model](https://drive.google.com/open?id=1o-83QlDXN1EC4HVgNfJtDNvYCs72A26O)
+[Pre-trained Flow_VGG16 Model](https://drive.google.com/open?id=1mATFI0QAHj6OgzJLzw9fhXNH1kpzQmDo)
+
+I am experimenting with memory efficient DenseNet now, will release the code in a couple of days. Stay tuned. 
 
 Related Projects
 ====================

@@ -34,7 +34,7 @@ parser.add_argument('--modality', '-m', metavar='MODALITY', default='rgb',
 parser.add_argument('--dataset', '-d', default='ucf101',
                     choices=["ucf101", "hmdb51"],
                     help='dataset: ucf101 | hmdb51')
-parser.add_argument('--arch', '-a', metavar='ARCH', default='rgb_vgg16',
+parser.add_argument('--arch', '-a', metavar='ARCH', default='rgb_resnet152',
                     choices=model_names,
                     help='model architecture: ' +
                         ' | '.join(model_names) +
@@ -57,18 +57,18 @@ parser.add_argument('--new_width', default=340, type=int,
                     metavar='N', help='resize width (default: 340)')
 parser.add_argument('--new_height', default=256, type=int,
                     metavar='N', help='resize height (default: 256)')
-parser.add_argument('--lr', '--learning-rate', default=0.005, type=float,
+parser.add_argument('--lr', '--learning-rate', default=0.001, type=float,
                     metavar='LR', help='initial learning rate')
 parser.add_argument('--lr_steps', default=[100, 200], type=float, nargs="+",
                     metavar='LRSteps', help='epochs to decay learning rate by 10')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
 parser.add_argument('--weight-decay', '--wd', default=5e-4, type=float,
-                    metavar='W', help='weight decay (default: 1e-4)')
+                    metavar='W', help='weight decay (default: 5e-4)')
 parser.add_argument('--print-freq', default=50, type=int,
-                    metavar='N', help='print frequency (default: 20)')
+                    metavar='N', help='print frequency (default: 50)')
 parser.add_argument('--save-freq', default=25, type=int,
-                    metavar='N', help='save frequency (default: 20)')
+                    metavar='N', help='save frequency (default: 25)')
 parser.add_argument('--resume', default='./checkpoints', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
 parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
@@ -110,7 +110,7 @@ def main():
         is_color = False
         scale_ratios = [1.0, 0.875, 0.75]
         clip_mean = [0.5, 0.5] * args.new_length
-        clip_std = [0.5, 0.5] * args.new_length
+        clip_std = [0.226, 0.226] * args.new_length
     else:
         print("No such modality. Only rgb and flow supported.")
 

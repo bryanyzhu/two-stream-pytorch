@@ -19,8 +19,6 @@ import torchvision.datasets as datasets
 
 sys.path.insert(0, "../../")
 import models
-# import torchvision.models as models
-
 from VideoSpatialPrediction import VideoSpatialPrediction
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   
@@ -36,7 +34,7 @@ def softmax(x):
 def main():
 
     model_path = '../../checkpoints/model_best.pth.tar'
-    data_dir = "/home/yzhu25/Documents/UCF101/frames"
+    data_dir = "~/UCF101/frames"
     start_frame = 0
     num_categories = 101
 
@@ -85,7 +83,7 @@ def main():
     print(match_count)
     print(len(val_list))
     print("Accuracy is %4.4f" % (float(match_count)/len(val_list)))
-    np.save("ucf101_split1_vgg16_rgb.npy", np.array(result_list))
+    np.save("ucf101_s1_rgb_resnet152.npy", np.array(result_list))
 
 if __name__ == "__main__":
     main()

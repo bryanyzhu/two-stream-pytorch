@@ -20,7 +20,6 @@ import torchvision.datasets as datasets
 
 sys.path.insert(0, "../../")
 import models
-# import torchvision.models as models
 
 from VideoTemporalPrediction import VideoTemporalPrediction
 
@@ -37,13 +36,13 @@ def softmax(x):
 def main():
 
     model_path = '../../checkpoints/model_best.pth.tar'
-    data_dir = "/home/yzhu25/Documents/UCF101/ucf101_flow_img_tvl1_gpu"
+    data_dir = "~/UCF101/ucf101_flow_img_tvl1_gpu"
     start_frame = 0
     num_categories = 101
 
     model_start_time = time.time()
     params = torch.load(model_path)
-    temporal_net = models.flow_vgg16(pretrained=False, num_classes=101)
+    temporal_net = models.flow_resnet152(pretrained=False, num_classes=101)
     temporal_net.load_state_dict(params['state_dict'])
     temporal_net.cuda()
     temporal_net.eval()
@@ -86,7 +85,7 @@ def main():
     print(match_count)
     print(len(val_list))
     print("Accuracy is %4.4f" % (float(match_count)/len(val_list)))
-    np.save("ucf101_split1_vgg16_flow.npy", np.array(result_list))
+    np.save("ucf101_s1_flow_resnet152.npy", np.array(result_list))
 
 if __name__ == "__main__":
     main()
