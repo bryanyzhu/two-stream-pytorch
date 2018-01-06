@@ -1,5 +1,4 @@
 import os
-import sys
 import time
 import argparse
 import shutil
@@ -11,7 +10,6 @@ import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
-import torchvision.models as basic_models
 
 import video_transforms
 import models
@@ -26,7 +24,7 @@ dataset_names = sorted(name for name in datasets.__all__)
 parser = argparse.ArgumentParser(description='PyTorch Two-Stream Action Recognition')
 parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
-parser.add_argument('--settings', metavar='DIR', default='./settings',
+parser.add_argument('--settings', metavar='DIR', default='./datasets/settings',
                     help='path to datset setting files')
 parser.add_argument('--modality', '-m', metavar='MODALITY', default='rgb',
                     choices=["rgb", "flow"],
@@ -115,7 +113,7 @@ def main():
         print("No such modality. Only rgb and flow supported.")
 
     normalize = video_transforms.Normalize(mean=clip_mean,
-                                     std=clip_std)
+                                           std=clip_std)
     train_transform = video_transforms.Compose([
             # video_transforms.Scale((256)),
             video_transforms.MultiScaleCrop((224, 224), scale_ratios),
