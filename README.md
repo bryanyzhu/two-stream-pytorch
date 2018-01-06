@@ -34,10 +34,10 @@ Code also works for Python 2.7.
 
 ## Data Preparation
 Download data [UCF101](http://crcv.ucf.edu/data/UCF101.php) and use `unrar x UCF101.rar` to extract the videos.
+
 Convert video to frames and extract optical flow
 ```
-python build_of.py --src_dir ./UCF-101 --out_dir ./ucf101_frames
---df_path <path to dense_flow>
+python build_of.py --src_dir ./UCF-101 --out_dir ./ucf101_frames --df_path <path to dense_flow>
 ```
 build file lists for training and validation
 ```
