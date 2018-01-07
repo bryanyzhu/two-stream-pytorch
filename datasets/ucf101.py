@@ -6,6 +6,7 @@ import random
 import numpy as np
 import cv2
 
+
 def find_classes(dir):
     classes = [d for d in os.listdir(dir) if os.path.isdir(os.path.join(dir, d))]
     classes.sort()
@@ -49,6 +50,7 @@ def ReadSegmentRGB(path, offsets, new_height, new_width, new_length, is_color, n
                sys.exit()
                # TODO: error handling here
             if new_width > 0 and new_height > 0:
+                # use OpenCV3, use OpenCV2.4.13 may have error
                 cv_img = cv2.resize(cv_img_origin, (new_width, new_height), interpolation)
             else:
                 cv_img = cv_img_origin
@@ -128,9 +130,9 @@ class ucf101(data.Dataset):
             self.name_pattern = name_pattern
         else:
             if self.modality == "rgb":
-                self.name_pattern = "image_%04d.jpg"
+                self.name_pattern = "img_%05d.jpg"
             elif self.modality == "flow":
-                self.name_pattern = "flow_%s_%04d.jpg"
+                self.name_pattern = "flow_%s_%05d.jpg"
 
         self.is_color = is_color
         self.num_segments = num_segments

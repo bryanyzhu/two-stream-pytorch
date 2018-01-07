@@ -1,5 +1,4 @@
 import os
-import sys
 import time
 import argparse
 import shutil
@@ -24,7 +23,7 @@ dataset_names = sorted(name for name in datasets.__all__)
 parser = argparse.ArgumentParser(description='PyTorch Two-Stream Action Recognition')
 parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
-parser.add_argument('--settings', metavar='DIR', default='./settings', 
+parser.add_argument('--settings', metavar='DIR', default='./datasets/settings',
                     help='path to datset setting files')
 parser.add_argument('--modality', '-m', metavar='MODALITY', default='rgb',
                     choices=["rgb", "flow"],
@@ -39,7 +38,7 @@ parser.add_argument('--arch', '-a', metavar='ARCH', default='vgg16',
                         ' (default: vgg16)')
 parser.add_argument('-s', '--split', default=1, type=int, metavar='S',
                     help='which split of data to work on (default: 1)')
-parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
+parser.add_argument('-j', '--workers', default=8, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=400, type=int, metavar='N',
                     help='number of total epochs to run')
