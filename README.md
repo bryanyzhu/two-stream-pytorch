@@ -5,13 +5,20 @@ Current release is the PyTorch implementation of the "Towards Good Practices for
 If you find this implementation useful in your work, please acknowledge it appropriately and cite the paper or code accordingly:
 
 ```
-Temporal Segment Networks: Towards Good Practices for Deep Action Recognition,
-Limin Wang, Yuanjun Xiong, Zhe Wang, Yu Qiao, Dahua Lin, Xiaoou Tang, Luc Van Gool
-ECCV 2016
+@inproceedings{wang_eccv2016_tsn,
+  title={Temporal Segment Networks: Towards Good Practices for Deep Action Recognition},
+  author={Limin Wang, Yuanjun Xiong, Zhe Wang, Yu Qiao, Dahua Lin, Xiaoou Tang, Luc Van Gool},
+  booktitle={European Conference on Computer Vision (ECCV)},
+  year={2016}
+}
 
-Hidden Two-Stream Convolutional Networks for Action Recognition
-Yi Zhu, Zhenzhong Lan, Shawn Newsam, Alexander G. Hauptmann
-https://arxiv.org/abs/1704.00389
+@inproceedings{zhu_accv2018_hidden,
+  title={Hidden Two-Stream Convolutional Networks for Action Recognition},
+  author={Yi Zhu, Zhenzhong Lan, Shawn Newsam, Alexander G. Hauptmann},
+  booktitle={Asian Conference on Computer Vision (ACCV)},
+  url={https://arxiv.org/abs/1704.00389}
+  year={2018}
+}
 ```
 
 If you are looking for a good-to-use codebase with a large model zoo, please checkout the video toolkit at [GluonCV](https://gluon-cv.mxnet.io/model_zoo/action_recognition.html). We have SOTA model implementations (TSN, I3D, NLN, SlowFast, etc.) for popular datasets (Kinetics400, UCF101, Something-Something-v2, etc.). We will organize a tutorial of video modeling in [CVPR2020](https://cvpr20-video.mxnet.io/), please join us if you are interested. 
